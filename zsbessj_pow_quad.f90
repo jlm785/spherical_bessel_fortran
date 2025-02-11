@@ -20,39 +20,39 @@
 !>  It provides an (under?) estimate of the number of accurate digits.
 !>
 !>  \author       Jose Luis Martins
-!>  \version      0.02
+!>  \version      0.01
 !>  \date         19 April 2018, 10 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_pow(n, z, zsb, acc)
+subroutine zsbessj_pow_quad(n, z, zsb, acc)
 
-!  Code basis was adapted on 19 April 2018 from old atom code, Siesta code, and NumSBF code.
+!  Written 19 April 2018 from old atom code, Siesta code, and NumSBF code.
 
 !  Relative errors are relevant for Abs(Re(z)) ~ 0.75 n, n > 30 and
 !  Abs(Re(z)) >> Abs(Im(z))
 
   implicit none
 
-  integer, parameter          :: REAL64 = selected_real_kind(12)
+  integer, parameter          :: REAL128 = selected_real_kind(28)
 
 ! input
 
-  integer, intent(in)                  ::  n                             !<  n >= 0 order of function
-  complex(REAL64), intent(in)          ::  z                             !<  argument
+  integer, intent(in)                  ::  n                           !<  n >= 0 order of function
+  complex(REAL128), intent(in)          ::  z                           !<  argument
 
 ! output
 
-  complex(REAL64), intent(out)         ::  zsb                           !<  result
-  real(REAL64) , intent(out)           ::  acc                           !<  (under)estimation of number of accurate digits)
+  complex(REAL128), intent(out)         ::  zsb                         !<  result
+  real(REAL128) , intent(out)           ::  acc                         !<  (under)estimation of number of accurate digits)
 
 ! local variables
 
-  complex(REAL64)               ::  pref                                 !  prefactor of series expansion
-  complex(REAL64)               ::  z2                                   !  0.5*z^2
-  complex(REAL64)               ::  sumz, fac                            !  series expansion
-  logical                       ::  fail
-  real(REAL64)                  ::  facmax
-  integer                       ::  jmax
+  complex(REAL128)               ::  pref                               !  prefactor of series expansion
+  complex(REAL128)               ::  z2                                 !  0.5*z^2
+  complex(REAL128)               ::  sumz, fac                          !  series expansion
+  logical                        ::  fail
+  real(REAL128)                  ::  facmax
+  integer                        ::  jmax
 
 ! counter
 
@@ -60,8 +60,8 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 
 ! parameters
 
-  real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
+  real(REAL128), parameter           ::  UM = 1.0_REAL128
+  real(REAL128), parameter           ::  EPS = epsilon(UM)
 
 ! series expansion
 
@@ -104,4 +104,4 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 
   return
 
-end subroutine zsbessj_pow
+end subroutine zsbessj_pow_quad

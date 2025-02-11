@@ -14,22 +14,18 @@
 !------------------------------------------------------------------------------!
 
 !>  Calculates the spherical bessel function of first kind j_n(z)
-!>  for a complex argument with a power series around z = 0.
-!>  Formula 10.1.2 of Abramowitz and Stegun.
+!>  for a complex argument with a backward series1.
+!>  Formula 10.1.19 of Abramowitz and Stegun.
 !>
-!>  It provides an (under?) estimate of the number of accurate digits.
+!>  Accuracy is estimated from the value of j_0.
 !>
 !>  \author       Jose Luis Martins
 !>  \version      0.02
-!>  \date         19 April 2018, 10 February 2025.
+!>  \date         11 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_pow(n, z, zsb, acc)
+subroutine zsbessj_bwd(n, z, zsb, acc)
 
-!  Code basis was adapted on 19 April 2018 from old atom code, Siesta code, and NumSBF code.
-
-!  Relative errors are relevant for Abs(Re(z)) ~ 0.75 n, n > 30 and
-!  Abs(Re(z)) >> Abs(Im(z))
 
   implicit none
 
@@ -43,16 +39,14 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 ! output
 
   complex(REAL64), intent(out)         ::  zsb                           !<  result
-  real(REAL64) , intent(out)           ::  acc                           !<  (under)estimation of number of accurate digits)
+  real(REAL64) , intent(out)           ::  acc                           !<  estimation of number of accurate digits)
 
 ! local variables
 
-  complex(REAL64)               ::  pref                                 !  prefactor of series expansion
-  complex(REAL64)               ::  z2                                   !  0.5*z^2
-  complex(REAL64)               ::  sumz, fac                            !  series expansion
-  logical                       ::  fail
-  real(REAL64)                  ::  facmax
-  integer                       ::  jmax
+  integer                       ::  nup                                  !  starting point nup
+
+  complex(REAL64)               ::  by, bym, byp, uz                     !  recurrence variables
+  complex(REAL64)               ::  zsb0
 
 ! counter
 
@@ -61,47 +55,32 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 ! parameters
 
   real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
 
-! series expansion
+  uz = UM / z
 
-  pref = UM
-  if(n > 0) then
-    do j = 1,n
-      pref = pref*z/(2*j+1)
-    enddo
-  endif
+! finds starting n
 
-! maximum j can be estimated from Stirling formula
+  nup = nint(abs(z) / 0.78)
+  if (nup < n+5) nup = n+5
 
-  z2 = z*z/2
-  sumz = UM
-  fac = UM
+! recursion formula
 
-  fail = .TRUE.
-  facmax = fac
+  call zsbessj_pow(nup+1, z, byp, acc)
+  call zsbessj_pow(nup, z, by, acc)
 
-  jmax = 40 + nint(1.5*abs(z))
-
-  do j = 1,jmax
-    fac = -fac*z2 / (j*(2*n+2*j+1))
-    sumz = sumz + fac
-    if(abs(fac) > facmax)  facmax = abs(fac)
-
-    if(abs(fac) < EPS .and. abs(z2) < real(4*j*j)) then
-       fail = .FALSE.
-
-       exit
-
-     endif
+  do j = nup,1,-1
+    bym = (2*j+1)*uz*by - byp
+    byp = by
+    by = bym
+    if(j-1 == n) zsb = by
   enddo
 
-  zsb = sumz*pref
-  acc = facmax / (abs(sumz)+EPS)
-  acc = -log10(acc*EPS)
+  zsb0 = sin(z) * uz
+  zsb = zsb * zsb0/by
 
-  if(fail) acc = 0
+  acc = -log10(abs(abs(zsb0/by)-UM))
+
 
   return
 
-end subroutine zsbessj_pow
+end subroutine zsbessj_bwd
