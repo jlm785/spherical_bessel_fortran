@@ -14,17 +14,17 @@
 !------------------------------------------------------------------------------!
 
 !>  Calculates the spherical bessel function of first kind j_n(z)
-!>  for a complex argument with a backward series1.
-!>  Formula 10.1.19 of Abramowitz and Stegun.
+!>  for a complex argument.
+!>  Formulas 10.1.2 and 10.1.19 of Abramowitz and Stegun.
 !>
-!>  Accuracy is estimated from the value of j_0.
+!>  For reasonable values of n and z it has almost machine precision.
 !>
 !>  \author       Jose Luis Martins
 !>  \version      0.02
-!>  \date         11 February 2025.
+!>  \date         12 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_bwd(n, z, zsb)
+function zsbessj(n, z)
 
 
   implicit none
@@ -38,46 +38,32 @@ subroutine zsbessj_bwd(n, z, zsb)
 
 ! output
 
-  complex(REAL64), intent(out)         ::  zsb                           !<  result
+  complex(REAL64)                      ::  zsbessj                       !<  result
 
 ! local variables
 
-  integer                       ::  nup                                  !  starting point nup
+  real(REAL64)                  ::  acc
+  integer                       ::  xpow
+  real(REAL64)                  ::  ax
 
-  complex(REAL64)               ::  by, bym, byp, uz                     !  recurrence variables
-  complex(REAL64)               ::  zsb0
-  real(REAL64)                  ::  acc                                  !  estimation of accuracy
-! counter
 
-  integer                    ::  j
+  xpow = min(10.0,n+0.01)
+  ax = abs(real(z,REAL64))
 
-! parameters
+  if(ax < xpow) then
 
-  real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
+    call zsbessj_pow(n, z, zsbessj, acc)
 
-  uz = UM / z
+  elseif(n < 10) then
 
-! finds starting n
+    call zsbessj_fwd(n, z, zsbessj, acc)
 
-  nup = nint(abs(z) / 0.78)
-  if (nup < n+5) nup = n+5
+  else
 
-! recursion formula
+    call zsbessj_bwd(n, z, zsbessj)
 
-  call zsbessj_pow(nup+1, z, byp, acc)
-  call zsbessj_pow(nup, z, by, acc)
+  endif
 
-  do j = nup,1,-1
-    bym = (2*j+1)*uz*by - byp
-    byp = by
-    by = bym
-    if(j-1 == n) zsb = by
-  enddo
 
-  zsb0 = sin(z) * uz
-  zsb = zsb * zsb0/by
 
-  return
-
-end subroutine zsbessj_bwd
+end function zsbessj
