@@ -1,3 +1,27 @@
+!------------------------------------------------------------------------------!
+!  This file is free software: you can redistribute it and/or modify           !
+!  it under the terms of the GNU Lesser General Public License as published by !
+!  the Free Software Foundation, either version 3 of the License, or           !
+!  (at your option) any later version.                                         !
+!                                                                              !
+!  This file is distributed in the hope that it will be useful,                !
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of              !
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the               !
+!  GNU Lesser General Public License for more details.                         !
+!                                                                              !
+!  You should have received a copy of the GNU Lesser General Public License    !
+!  along with this program.  If not, see <https://www.gnu.org/licenses/>.      !
+!------------------------------------------------------------------------------!
+
+!>  Tests the complex spherical bessel functions
+!>
+!>  \author       Jose Luis Martins
+!>  \version      0.01
+!>  \date         February 2025.
+!>  \copyright    GNU LGPL v3
+
+
+
 program test_bessel
 
   implicit none
@@ -60,31 +84,31 @@ program test_bessel
 
     call zsbessj_fwd(n, z, zsb_f, acc_f)
 
-    call zsbessj_bwd(n, z, zsb_b)
+    call zsbessj_bwd(n, z, zsb_b, acc_b)
 
-    call zsbessj_pow_quad(n, z_q, zsb_q, acc_q)
+    call zsbessj_quad(n, z_q, zsb_q, acc_q)
 
     zsb = zsbessj(n, z)
 
-    if(acc_q < 20) then
+    if(acc_q < 17) then
       write(6,'(2g24.16,10x,f10.3,"    quad    ")') zsb_q, acc_q
       write(6,'(2g24.16                         )') zsb
       write(6,*)
       write(6,'(2g24.16,10x,f10.3,"    power   ")') zsb_p, acc_p
       write(6,'(2g24.16,10x,f10.3,"    forward ")') zsb_f, acc_f
-      write(6,'(2g24.16,20x      ,"    backward")') zsb_b
+      write(6,'(2g24.16,10x,f10.3,"    backward")') zsb_b, acc_b
       write(6,*)
     else
       write(6,'(2g24.16,10x,f10.3,"    quad    ")') zsb_q, acc_q
-      acc = -log10(abs(zsb  -zsb_q)/(abs(zsb_q)+EPS*abs(zsb  -zsb_q)))
+      acc = -log10(abs(zsb  -zsb_q)/(abs(zsb_q)+EPS)+EPS)
       write(6,'(2g24.16                         ,f10.3)') zsb, acc
       write(6,*)
-      acc = -log10(abs(zsb_p-zsb_q)/(abs(zsb_q)+EPS*abs(zsb_p-zsb_q)))
+      acc = -log10(abs(zsb_p-zsb_q)/(abs(zsb_q)+EPS)+EPS)
       write(6,'(2g24.16,10x,f10.3,"    power   ",f10.3)') zsb_p, acc_p, acc
-      acc = -log10(abs(zsb_f-zsb_q)/(abs(zsb_q)+EPS*abs(zsb_f-zsb_q)))
+      acc = -log10(abs(zsb_f-zsb_q)/(abs(zsb_q)+EPS)+EPS)
       write(6,'(2g24.16,10x,f10.3,"    forward ",f10.3)') zsb_f, acc_f, acc
-      acc = -log10(abs(zsb_b-zsb_q)/(abs(zsb_q)+EPS*abs(zsb_b-zsb_q)))
-      write(6,'(2g24.16,20x      ,"    backward",f10.3)') zsb_b, acc
+      acc = -log10(abs(zsb_b-zsb_q)/(abs(zsb_q)+EPS)+EPS)
+      write(6,'(2g24.16,10x,f10.3,"    backward",f10.3)') zsb_b, acc_b, acc
       write(6,*)
     endif
 
@@ -93,5 +117,7 @@ program test_bessel
   stop
 
 end
+
+
 
 

@@ -24,74 +24,63 @@
 !>  \date         12 February 2025.
 !>  \copyright    GNU LGPL v3
 
-function zsbessj(n, z)
+subroutine zsbessj_quad(n, z, zsb, acc)
 
 
   implicit none
 
-  integer, parameter          :: REAL64 = selected_real_kind(12)
+  integer, parameter          :: REAL128 = selected_real_kind(28)
 
 ! input
 
   integer, intent(in)                  ::  n                             !<  n >= 0 order of function
-  complex(REAL64), intent(in)          ::  z                             !<  argument
+  complex(REAL128), intent(in)         ::  z                             !<  argument
 
 ! output
 
-  complex(REAL64)                      ::  zsbessj                       !<  result
+  complex(REAL128), intent(out)        ::  zsb                           !<  result
+  real(REAL128), intent(out)           ::  acc                           !<  estimate of accuracy
 
 ! local variables
 
-  real(REAL64)                  ::  acc
-  real(REAL64)                  ::  xpow
-  real(REAL64)                  ::  ax, ay
-  integer                       ::  nfwd
+  real(REAL128)                  ::  xpow
+  real(REAL128)                  ::  ax
 
-  complex(REAL64)               ::  zsb                                  !  partial result
+  real(REAL128)                  ::  acc_fwd
+  complex(REAL128)               ::  zsb_fwd
 
-  real(REAL64)                  ::  acc_fwd
-  complex(REAL64)               ::  zsb_fwd
-
-  real(REAL64)                  ::  acc_pow
-  complex(REAL64)               ::  zsb_pow
+  real(REAL128)                  ::  acc_pow
+  complex(REAL128)               ::  zsb_pow
 
 
 
-  xpow = min(10.0,n+0.01)
-  ax = abs(real(z,REAL64))
-  ay = abs(aimag(z))
-
-  nfwd = 10
-  if(ay > 3.0) nfwd = 7
-  if(ay < 0.1) nfwd = 15
+  xpow = min(20.0,n+0.01)
+  ax = abs(real(z,REAL128))
 
   if(ax < xpow) then
 
-    call zsbessj_pow(n, z, zsb, acc)
+    call zsbessj_pow_quad(n, z, zsb, acc)
 
-  elseif(n < nfwd) then
+  elseif(n < 30) then
 
-    call zsbessj_fwd(n, z, zsb, acc)
+    call zsbessj_fwd_quad(n, z, zsb, acc)
 
   else
 
-!   In some localized values near the real axis backward may not be the most accurate
-!   This is an hack as the accuracy is an estimate...
+    call zsbessj_bwd_quad(n, z, zsb, acc)
 
-    call zsbessj_bwd(n, z, zsb, acc)
-
-    if(acc < 14.0 .and. ay < 3.0)then
+    if(acc < 20)then
 
       if(ax > real(n)) then
 
-        call zsbessj_fwd(n, z, zsb_fwd, acc_fwd)
+        call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
 
-        if(acc_fwd +1.5 > acc) zsb = zsb_fwd
+        if(acc_fwd > acc) zsb = zsb_fwd
 
       else
 
-        call zsbessj_pow(n, z, zsb_pow, acc_pow)
-        call zsbessj_fwd(n, z, zsb_fwd, acc_fwd)
+        call zsbessj_pow_quad(n, z, zsb_pow, acc_pow)
+        call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
 
 
         if(acc_fwd > acc .and. acc_fwd >= acc_pow) zsb = zsb_fwd
@@ -102,9 +91,8 @@ function zsbessj(n, z)
 
   endif
 
-  zsbessj = zsb
+end subroutine zsbessj_quad
 
-end function zsbessj
 
 
 
@@ -115,39 +103,39 @@ end function zsbessj
 !>  It provides an (under?) estimate of the number of accurate digits.
 !>
 !>  \author       Jose Luis Martins
-!>  \version      0.02
+!>  \version      0.01
 !>  \date         19 April 2018, 10 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_pow(n, z, zsb, acc)
+subroutine zsbessj_pow_quad(n, z, zsb, acc)
 
-!  Code basis was adapted on 19 April 2018 from old atom code, Siesta code, and NumSBF code.
+!  Written 19 April 2018 from old atom code, Siesta code, and NumSBF code.
 
 !  Relative errors are relevant for Abs(Re(z)) ~ 0.75 n, n > 30 and
 !  Abs(Re(z)) >> Abs(Im(z))
 
   implicit none
 
-  integer, parameter          :: REAL64 = selected_real_kind(12)
+  integer, parameter          :: REAL128 = selected_real_kind(28)
 
 ! input
 
-  integer, intent(in)                  ::  n                             !<  n >= 0 order of function
-  complex(REAL64), intent(in)          ::  z                             !<  argument
+  integer, intent(in)                   ::  n                           !<  n >= 0 order of function
+  complex(REAL128), intent(in)          ::  z                           !<  argument
 
 ! output
 
-  complex(REAL64), intent(out)         ::  zsb                           !<  result
-  real(REAL64) , intent(out)           ::  acc                           !<  (under)estimation of number of accurate digits)
+  complex(REAL128), intent(out)         ::  zsb                         !<  result
+  real(REAL128) , intent(out)           ::  acc                         !<  (under)estimation of number of accurate digits)
 
 ! local variables
 
-  complex(REAL64)               ::  pref                                 !  prefactor of series expansion
-  complex(REAL64)               ::  z2                                   !  0.5*z^2
-  complex(REAL64)               ::  sumz, fac                            !  series expansion
-  logical                       ::  fail
-  real(REAL64)                  ::  facmax
-  integer                       ::  jmax
+  complex(REAL128)               ::  pref                               !  prefactor of series expansion
+  complex(REAL128)               ::  z2                                 !  0.5*z^2
+  complex(REAL128)               ::  sumz, fac                          !  series expansion
+  logical                        ::  fail
+  real(REAL128)                  ::  facmax
+  integer                        ::  jmax
 
 ! counter
 
@@ -155,9 +143,8 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 
 ! parameters
 
-  real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
-
+  real(REAL128), parameter           ::  UM = 1.0_REAL128
+  real(REAL128), parameter           ::  EPS = epsilon(UM)
 
 ! series expansion
 
@@ -193,7 +180,6 @@ subroutine zsbessj_pow(n, z, zsb, acc)
   enddo
 
   zsb = sumz*pref
-
   acc = facmax / (abs(sumz)+EPS)
   acc = -log10(acc*EPS)
 
@@ -201,9 +187,7 @@ subroutine zsbessj_pow(n, z, zsb, acc)
 
   return
 
-end subroutine zsbessj_pow
-
-
+end subroutine zsbessj_pow_quad
 
 
 
@@ -211,6 +195,8 @@ end subroutine zsbessj_pow
 !>  Calculates the spherical bessel function of first kind j_n(z)
 !>  for a complex argument with a forward series from n = 0,1.
 !>  Formula 10.1.19 of Abramowitz and Stegun.
+!>
+!>  Quad precision version
 !>
 !>  It provides an estimate of the number of accurate digits.
 !>  This estimate may be optimist for large values of z.
@@ -220,7 +206,7 @@ end subroutine zsbessj_pow
 !>  \date         19 April 2018, 10 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_fwd(n, z, zsb, acc)
+subroutine zsbessj_fwd_quad(n, z, zsb, acc)
 
 !  Written 19 April 2018 from old atom code, Siesta code, and NumSBF code.
 
@@ -229,22 +215,22 @@ subroutine zsbessj_fwd(n, z, zsb, acc)
 
   implicit none
 
-  integer, parameter          :: REAL64 = selected_real_kind(12)
+  integer, parameter          :: REAL128 = selected_real_kind(28)
 
 ! input
 
   integer, intent(in)                  ::  n                             !<  n >= 0 order of function
-  complex(REAL64), intent(in)          ::  z                             !<  argument
+  complex(REAL128), intent(in)         ::  z                             !<  argument
 
 ! output
 
-  complex(REAL64), intent(out)         ::  zsb                           !<  result
-  real(REAL64) , intent(out)           ::  acc                           !<  (over)estimation of number of accurate digits)
+  complex(REAL128), intent(out)        ::  zsb                           !<  result
+  real(REAL128) , intent(out)          ::  acc                           !<  (over)estimation of number of accurate digits)
 
 ! local variables
 
-  complex(REAL64)               ::  by, bym, byp, uz                     !  recurrence variables
-  real(REAL64)                  ::  bymax
+  complex(REAL128)              ::  by, bym, byp, uz                     !  recurrence variables
+  real(REAL128)                 ::  bymax
 
 ! counter
 
@@ -252,9 +238,9 @@ subroutine zsbessj_fwd(n, z, zsb, acc)
 
 ! parameters
 
-  real(REAL64), parameter           ::  ZERO = 0.0_REAL64
-  real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
+  real(REAL128), parameter          ::  ZERO = 0.0_REAL128
+  real(REAL128), parameter          ::  UM = 1.0_REAL128
+  real(REAL128), parameter          ::  EPS = epsilon(UM)
 
   uz = UM / z
 
@@ -293,13 +279,15 @@ subroutine zsbessj_fwd(n, z, zsb, acc)
 
   return
 
-end subroutine zsbessj_fwd
+end subroutine zsbessj_fwd_quad
 
 
 
 !>  Calculates the spherical bessel function of first kind j_n(z)
 !>  for a complex argument with a backward series1.
 !>  Formula 10.1.19 of Abramowitz and Stegun.
+!>
+!>  Quad precision version
 !>
 !>  Accuracy is estimated from the correction yo the value of j_0.
 !>  The accuracy of j_n may be quite higher.
@@ -309,29 +297,29 @@ end subroutine zsbessj_fwd
 !>  \date         11 February 2025.
 !>  \copyright    GNU LGPL v3
 
-subroutine zsbessj_bwd(n, z, zsb, acc)
+subroutine zsbessj_bwd_quad(n, z, zsb, acc)
 
 
   implicit none
 
-  integer, parameter          :: REAL64 = selected_real_kind(12)
+  integer, parameter          :: REAL128 = selected_real_kind(28)
 
 ! input
 
   integer, intent(in)                  ::  n                             !<  n >= 0 order of function
-  complex(REAL64), intent(in)          ::  z                             !<  argument
+  complex(REAL128), intent(in)         ::  z                             !<  argument
 
 ! output
 
-  complex(REAL64), intent(out)         ::  zsb                           !<  result
-  real(REAL64) , intent(out)           ::  acc                           !<  number of accurate digits of j_0.
+  complex(REAL128), intent(out)        ::  zsb                           !<  result
+  real(REAL128) , intent(out)          ::  acc                           !<  number of accurate digits of j_0.
 
 ! local variables
 
   integer                       ::  nup                                  !  starting point nup
 
-  complex(REAL64)               ::  by, bym, byp, uz                     !  recurrence variables
-  complex(REAL64)               ::  zsb0
+  complex(REAL128)              ::  by, bym, byp, uz                     !  recurrence variables
+  complex(REAL128)              ::  zsb0
 
 ! counter
 
@@ -339,20 +327,20 @@ subroutine zsbessj_bwd(n, z, zsb, acc)
 
 ! parameters
 
-  real(REAL64), parameter           ::  UM = 1.0_REAL64
-  real(REAL64), parameter           ::  EPS = epsilon(UM)
+  real(REAL128), parameter          ::  UM = 1.0_REAL128
+  real(REAL128), parameter          ::  EPS = epsilon(UM)
 
   uz = UM / z
 
 ! finds starting n
 
   nup = nint(abs(z) / 0.78)
-  if (nup < n+30) nup = n+30
+  if (nup < n+50) nup = n+50
 
 ! recursion formula
 
-  call zsbessj_pow(nup+1, z, byp, acc)
-  call zsbessj_pow(nup, z, by, acc)
+  call zsbessj_pow_quad(nup+1, z, byp, acc)
+  call zsbessj_pow_quad(nup, z, by, acc)
 
   do j = nup,1,-1
     bym = (2*j+1)*uz*by - byp
@@ -368,5 +356,6 @@ subroutine zsbessj_bwd(n, z, zsb, acc)
 
   return
 
-end subroutine zsbessj_bwd
+end subroutine zsbessj_bwd_quad
+
 
