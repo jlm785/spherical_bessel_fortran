@@ -20,7 +20,7 @@
 !>  For reasonable values of n and z it has almost machine precision.
 !>
 !>  \author       Jose Luis Martins
-!>  \version      0.02
+!>  \version      0.03
 !>  \date         12 February 2025.
 !>  \copyright    GNU LGPL v3
 
@@ -46,11 +46,11 @@ subroutine zsbessj_quad(n, z, zsb, acc)
   real(REAL128)                  ::  xpow
   real(REAL128)                  ::  ax
 
-  real(REAL128)                  ::  acc_fwd
-  complex(REAL128)               ::  zsb_fwd
-
-  real(REAL128)                  ::  acc_pow
-  complex(REAL128)               ::  zsb_pow
+!   real(REAL128)                  ::  acc_fwd
+!   complex(REAL128)               ::  zsb_fwd
+!
+!   real(REAL128)                  ::  acc_pow
+!   complex(REAL128)               ::  zsb_pow
 
 
 
@@ -69,27 +69,53 @@ subroutine zsbessj_quad(n, z, zsb, acc)
 
     call zsbessj_bwd_quad(n, z, zsb, acc)
 
-    if(acc < 20)then
-
-      if(ax > real(n)) then
-
-        call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
-
-        if(acc_fwd > acc) zsb = zsb_fwd
-
-      else
-
-        call zsbessj_pow_quad(n, z, zsb_pow, acc_pow)
-        call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
-
-
-        if(acc_fwd > acc .and. acc_fwd >= acc_pow) zsb = zsb_fwd
-        if(acc_pow > acc .and. acc_pow >  acc_fwd) zsb = zsb_pow
-
-      endif
-    endif
+!     if(acc < 20)then
+!
+!       WRITE(6,*) ' ACC  = ',ACC
+!
+!       if(ax > real(n)) then
+!
+!         call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
+!
+!         if(acc_fwd > acc) then
+!           zsb = zsb_fwd
+!           acc = acc_fwd
+!
+!           WRITE(6,*) '  USING FWD  1'
+!         endif
+!       else
+!
+!         call zsbessj_pow_quad(n, z, zsb_pow, acc_pow)
+!         call zsbessj_fwd_quad(n, z, zsb_fwd, acc_fwd)
+!
+!         if(acc_fwd > acc .and. acc_fwd >= acc_pow) then
+!           zsb = zsb_fwd
+!           acc = acc_fwd
+!
+!           WRITE(6,*) '  USING FWD   2'
+!         elseif(acc_pow > acc .and. acc_pow >  acc_fwd) then
+!           zsb = zsb_pow
+!           acc = acc_pow
+!
+!           WRITE(6,*) '  USING POW'
+!         endif
+!
+!       endif
+!
+!     endif
 
   endif
+
+!   IF(ACC < 16) THEN
+!     WRITE(91,'(2E18.10,5X,F8.3,5X,I5)')  Z,ACC,N
+!     WRITE(91,'(2E30.22)')  ZSB
+!     call zsbessj_pow_quad(n, z, zsb, acc)
+!     WRITE(91,'(40X,"POW",5X,F8.3)')  ACC
+!     call zsbessj_fwd_quad(n, z, zsb, acc)
+!     WRITE(91,'(40X,"FWD",5X,F8.3)')  ACC
+!     call zsbessj_bwd_quad(n, z, zsb, acc)
+!     WRITE(91,'(40X,"BWD",5X,F8.3)')  ACC
+!   ENDIF
 
 end subroutine zsbessj_quad
 
@@ -319,7 +345,8 @@ subroutine zsbessj_bwd_quad(n, z, zsb, acc)
   integer                       ::  nup                                  !  starting point nup
 
   complex(REAL128)              ::  by, bym, byp, uz                     !  recurrence variables
-  complex(REAL128)              ::  zsb0
+  complex(REAL128)              ::  zsb0, zsb1
+  real(REAL128)                 ::  ax
 
 ! counter
 
@@ -334,8 +361,16 @@ subroutine zsbessj_bwd_quad(n, z, zsb, acc)
 
 ! finds starting n
 
-  nup = nint(abs(z) / 0.78)
-  if (nup < n+50) nup = n+50
+  ax = abs(z)
+  if(abs(z) < 10*UM) then
+    nup = nint(40*sqrt(ax) / sqrt(10.0)) + 10
+  elseif(ax < 20*UM / (2 - exp(UM)/2)) then
+    nup = nint(2*ax+30)
+  else
+    nup = nint(exp(UM)*ax/2 + 50)
+  endif
+
+  if(nup < n+10) nup = n+10
 
 ! recursion formula
 
@@ -349,10 +384,17 @@ subroutine zsbessj_bwd_quad(n, z, zsb, acc)
     if(j-1 == n) zsb = by
   enddo
 
-  zsb0 = sin(z) * uz
-  zsb = zsb * zsb0/by
+! renormalizes from the final value of j_0 or j_1
 
-  acc = -log10(abs(abs(zsb0/by)-UM))
+  zsb0 = sin(z) * uz
+  zsb1 = (zsb0-cos(z)) * uz
+  if(abs(zsb0) > abs(zsb1)) then
+    zsb = zsb * zsb0/by
+    acc = -log10(abs(abs(zsb0/by)-UM))
+  else
+    zsb = zsb * zsb1/byp
+    acc = -log10(abs(abs(zsb1/byp)-UM))
+  endif
 
   return
 
